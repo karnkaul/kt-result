@@ -95,7 +95,11 @@ struct result {
 	///
 	/// \brief Check if signal represents success
 	///
-	constexpr operator bool() const noexcept;
+	constexpr explicit operator bool() const noexcept;
+	///
+	/// \brief Check if signal represents success
+	///
+	constexpr bool has_result() const noexcept;
 	///
 	/// \brief Obtain signal
 	///
@@ -177,6 +181,11 @@ constexpr result<T, RD>::result(sig signal, Args&&... args) noexcept(noexcept(st
 
 template <typename T, typename RD>
 constexpr result<T, RD>::operator bool() const noexcept {
+	return storage.signal == RD::success;
+}
+
+template <typename T, typename RD>
+constexpr bool result<T, RD>::has_result() const noexcept {
 	return storage.signal == RD::success;
 }
 
