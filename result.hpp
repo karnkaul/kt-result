@@ -2,234 +2,472 @@
 // Requirements: C++17
 
 #pragma once
+#include <cassert>
 #include <optional>
-#include <stdexcept>
-#include <string>
 #include <type_traits>
+#include <variant>
 
 namespace kt {
-///
-/// \brief Default success/failure indicator type
-///
-enum class result_signal { ok, error };
-///
-/// \brief Default result dispatch tag type
-///
-template <typename Err = std::string, typename Sig = result_signal>
-struct result_dispatch;
-///
-/// \brief Default result dispatch tag type
-///
-template <typename Err>
-struct result_dispatch<Err, result_signal> {
-	using sig = result_signal;
-	using err = Err;
-
-	static constexpr sig success = result_signal::ok;
-	static constexpr sig failure = result_signal::error;
-};
-
 namespace detail {
-template <typename T, typename Sig, Sig Null, typename E>
-struct result_storage {
-	std::optional<T> data;
-	E error = {};
-	Sig signal = Null;
-};
-template <typename T, typename Sig, Sig Null>
-struct result_storage<T, Sig, Null, void> {
-	std::optional<T> data;
-	Sig signal = Null;
-};
-template <typename E>
-struct result_err {
-	using type = E const&;
-};
-template <>
-struct result_err<void> {
-	using type = bool;
-};
-template <typename E>
-using result_err_t = typename result_err<E>::type;
-template <typename...>
-constexpr bool false_t = false;
-template <std::size_t N, typename... T>
-constexpr bool is_ne = sizeof...(T) != N;
+template <typename T, typename E>
+struct result_storage_t;
+template <typename... T>
+constexpr bool false_v = false;
 } // namespace detail
 
 ///
-/// \brief structure containing T / RD::err (if non-void) and RD::sig
+/// \brief Models a result (T) or an error (E) value
+/// Note: T cannot be void
+/// Specializations:
+/// 	- T, T : homogeneous result and error types
+/// 	- T, void : result type only (like optional)
+/// 	- bool, void : boolean result only (like bool)
 ///
-template <typename T, typename RD = result_dispatch<>>
-struct result {
+template <typename T, typename E = void>
+class result_t;
+
+///
+/// \brief Models a result (T) or an error (E) value
+/// Note: T cannot be void
+///
+template <typename T, typename E>
+class result_t {
+	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
+
+  public:
+	///
+	/// \brief Result type
+	///
 	using type = T;
-	using sig = typename RD::sig;
-	using err = typename RD::err;
-	using err_t = detail::result_err_t<err>;
-
-	static_assert(std::is_void_v<err> || std::is_default_constructible_v<err>, "err must be default constructible!");
-
 	///
-	/// \brief (Default) constructor for failure signal
+	/// \brief Error type
 	///
-	constexpr result() noexcept = default;
-	///
-	/// \brief Constructor for failure signal
-	///
-	template <typename... Args, typename = std::enable_if_t<detail::is_ne<0, Args...>>>
-	constexpr result(Args&&... args) noexcept(noexcept(std::is_nothrow_move_constructible_v<err>));
-	///
-	/// \brief Constructor for success signal
-	///
-	constexpr result(T&& value) noexcept(noexcept(std::is_nothrow_move_constructible_v<T>));
-	///
-	/// \brief Constructor for success signal
-	///
-	constexpr result(T& value) noexcept(noexcept(std::is_nothrow_constructible_v<T>));
-	///
-	/// \brief Constructor for non-success signal
-	///
-	template <typename... Args>
-	constexpr result(sig signal, Args&&... args) noexcept(noexcept(std::is_nothrow_move_constructible_v<err>));
+	using err_t = E;
 
 	///
-	/// \brief Check if signal represents success
+	/// \brief Default constructor (failure)
+	///
+	constexpr result_t() = default;
+	///
+	/// \brief Constructor for result (success)
+	///
+	constexpr result_t(type&& t);
+	///
+	/// \brief Constructor for result (success)
+	///
+	constexpr result_t(type const& t);
+	///
+	/// \brief Constructor for error (failure)
+	///
+	constexpr result_t(err_t&& e);
+	///
+	/// \brief Constructor for error (failure)
+	///
+	constexpr result_t(err_t const& e);
+
+	///
+	/// \brief Operator to check for success
 	///
 	constexpr explicit operator bool() const noexcept;
 	///
-	/// \brief Check if signal represents success
+	/// \brief Check for success
 	///
 	constexpr bool has_result() const noexcept;
 	///
-	/// \brief Obtain signal
+	/// \brief Check for failure
 	///
-	constexpr sig signal() const;
+	constexpr bool has_error() const noexcept;
+
 	///
-	/// \brief Obtain value if success (throws otherwise)
+	/// \brief Obtain result
 	///
-	constexpr T const& operator*() const;
+	constexpr type const& result() const;
 	///
-	/// \brief Move value if success (throws otherwise)
+	/// \brief Obtain result if success else fallback
 	///
-	constexpr T&& move();
+	constexpr type const& value_or(type const& fallback) const;
 	///
-	/// \brief Access value if success (throws otherwise)
+	/// \brief Obtain error
 	///
-	constexpr T const* operator->() const;
+	constexpr err_t const& error() const;
 	///
-	/// \brief Obtain result value if success, else fallback
+	/// \brief Move result
 	///
-	constexpr T const& value_or(T const& fallback) const noexcept;
-	///
-	/// \brief Obtain error if not success (RD::err{} / false otherwise)
-	///
-	err_t error() const noexcept;
+	constexpr type move();
+
+	constexpr type const& operator*() const;
+	constexpr type const* operator->() const;
 
   private:
-	///
-	/// \brief Storage for result signal and data (and error, if not void)
-	///
-	detail::result_storage<T, sig, RD::failure, err> storage;
+	detail::result_storage_t<type, err_t> m_storage;
 };
 
 ///
-/// \brief Typedef for result with no error value (void)
+/// \brief Models a result or an error value (T)
+/// Note: T cannot be void
 ///
-template <typename T, typename Sig = result_signal>
-using result_void = result<T, result_dispatch<void, Sig>>;
-///
-/// \brief Typedef for result with std::string_view error value
-///
-template <typename T, typename Sig = result_signal>
-using result_sv = result<T, result_dispatch<std::string_view, Sig>>;
+template <typename T>
+class result_t<T, T> {
+	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
-template <typename Err, typename Sig>
-struct result_dispatch {
-	static_assert(detail::false_t<Sig>, "result_dispatch missing specialisation!");
+  public:
+	///
+	/// \brief Result type
+	///
+	using type = T;
+	///
+	/// \brief Error type
+	///
+	using err_t = T;
+
+	///
+	/// \brief Default constructor (failure)
+	///
+	constexpr result_t();
+
+	///
+	/// \brief Set result (success)
+	///
+	constexpr void result(type&& t);
+	///
+	/// \brief Set result (success)
+	///
+	constexpr void result(type const& t);
+	///
+	/// \brief Set error (failure)
+	///
+	constexpr void error(err_t&& t);
+	///
+	/// \brief Set error (failure)
+	///
+	constexpr void error(err_t const& t);
+
+	///
+	/// \brief Operator to check for success
+	///
+	constexpr explicit operator bool() const noexcept;
+	///
+	/// \brief Check for success
+	///
+	constexpr bool has_result() const noexcept;
+	///
+	/// \brief Check for failure
+	///
+	constexpr bool has_error() const noexcept;
+
+	///
+	/// \brief Obtain result
+	///
+	constexpr type const& result() const;
+	///
+	/// \brief Obtain result if success else fallback
+	///
+	constexpr type const& value_or(type const& fallback) const;
+	///
+	/// \brief Obtain error
+	///
+	constexpr err_t const& error() const;
+	///
+	/// \brief Move result
+	///
+	constexpr type move();
+
+	constexpr type const& operator*() const;
+	constexpr type const* operator->() const;
+
+  private:
+	detail::result_storage_t<type, void> m_storage;
+	bool m_error = true;
 };
 
-template <typename T, typename RD>
-template <typename... Args, typename>
-constexpr result<T, RD>::result(Args&&... args) noexcept(noexcept(std::is_nothrow_move_constructible_v<err>))
-	: result(RD::failure, std::forward<Args>(args)...) {
-}
+///
+/// \brief Models an optional result (T)
+/// Note: T cannot be void
+///
+template <typename T>
+class result_t<T, void> {
+	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
-template <typename T, typename RD>
-constexpr result<T, RD>::result(T&& value) noexcept(noexcept(std::is_nothrow_move_constructible_v<T>)) {
-	storage.data = std::move(value);
-	storage.signal = RD::success;
-}
+  public:
+	///
+	/// \brief Result type
+	///
+	using type = T;
 
-template <typename T, typename RD>
-constexpr result<T, RD>::result(T& value) noexcept(noexcept(std::is_nothrow_constructible_v<T>)) {
-	storage.data = value;
-	storage.signal = RD::success;
-}
+	///
+	/// \brief Default constructor (failure)
+	///
+	constexpr result_t() = default;
+	///
+	/// \brief Constructor for result (success)
+	///
+	constexpr result_t(type&& t);
+	///
+	/// \brief Constructor for result (success)
+	///
+	constexpr result_t(type const& t);
 
-template <typename T, typename RD>
-template <typename... Args>
-constexpr result<T, RD>::result(sig signal, Args&&... args) noexcept(noexcept(std::is_nothrow_move_constructible_v<err>)) {
-	if constexpr (!std::is_void_v<err>) {
-		if constexpr (sizeof...(Args) > 0) {
-			storage.error = err{std::forward<Args>(args)...};
-		}
-	} else {
-		static_assert(sizeof...(Args) == 0, "Invalid args: err is void!");
+	///
+	/// \brief Operator to check for success
+	///
+	constexpr explicit operator bool() const noexcept;
+	///
+	/// \brief Check for success
+	///
+	constexpr bool has_result() const noexcept;
+	///
+	/// \brief Check for failure
+	///
+	constexpr bool has_error() const noexcept;
+
+	///
+	/// \brief Obtain result
+	///
+	constexpr type const& result() const;
+	///
+	/// \brief Obtain result if success else fallback
+	///
+	constexpr type const& value_or(type const& fallback) const;
+	///
+	/// \brief Move result
+	///
+	constexpr type move();
+
+	constexpr type const& operator*() const;
+	constexpr type const* operator->() const;
+
+  private:
+	detail::result_storage_t<T, void> m_storage;
+};
+
+namespace detail {
+template <typename T, typename E>
+struct result_storage_t {
+	std::variant<T, E> val;
+
+	constexpr result_storage_t() : val(E{}) {
 	}
-	storage.signal = signal;
-}
-
-template <typename T, typename RD>
-constexpr result<T, RD>::operator bool() const noexcept {
-	return storage.signal == RD::success;
-}
-
-template <typename T, typename RD>
-constexpr bool result<T, RD>::has_result() const noexcept {
-	return storage.signal == RD::success;
-}
-
-template <typename T, typename RD>
-constexpr T const& result<T, RD>::operator*() const {
-	if (storage.signal == RD::success) {
-		return *storage.data;
+	constexpr result_storage_t(T&& t) : val(std::move(t)) {
 	}
-	throw std::runtime_error("Invalid result!");
+	constexpr result_storage_t(T const& t) : val(t) {
+	}
+	constexpr result_storage_t(E&& e) : val(std::move(e)) {
+	}
+	constexpr result_storage_t(E const& e) : val(e) {
+	}
+	constexpr bool has_value() const noexcept {
+		return std::holds_alternative<T>(val);
+	}
+	constexpr T const& value() const {
+		assert(has_value());
+		return std::get<T>(val);
+	}
+	constexpr T move() {
+		assert(has_value());
+		T ret = std::get<T>(std::move(val));
+		val = E{};
+		return ret;
+	}
+	constexpr E const& error() const {
+		assert(!has_value());
+		return std::get<E>(val);
+	}
+};
+template <typename T>
+struct result_storage_t<T, void> {
+	std::optional<T> val;
+
+	constexpr result_storage_t() = default;
+	constexpr result_storage_t(T&& t) : val(std::move(t)) {
+	}
+	constexpr result_storage_t(T const& t) : val(t) {
+	}
+	constexpr bool has_value() const noexcept {
+		return val.has_value();
+	}
+	constexpr T const& value() const {
+		assert(has_value());
+		return *val;
+	}
+	constexpr T move() {
+		assert(has_value());
+		T ret = std::move(*val);
+		val.reset();
+		return ret;
+	}
+};
+template <>
+struct result_storage_t<bool, void> {
+	bool val;
+
+	constexpr result_storage_t() : val(false) {
+	}
+	constexpr result_storage_t(bool val) : val(val) {
+	}
+	constexpr bool has_value() const noexcept {
+		return val;
+	}
+	constexpr bool value() const {
+		return val;
+	}
+	constexpr bool move() {
+		bool const ret = val;
+		val = false;
+		return ret;
+	}
+};
+} // namespace detail
+
+template <typename T, typename E>
+constexpr result_t<T, E>::result_t(type&& t) : m_storage(std::move(t)) {
+}
+template <typename T, typename E>
+constexpr result_t<T, E>::result_t(type const& t) : m_storage(t) {
+}
+template <typename T, typename E>
+constexpr result_t<T, E>::result_t(err_t&& e) : m_storage(std::move(e)) {
+}
+template <typename T, typename E>
+constexpr result_t<T, E>::result_t(err_t const& e) : m_storage(e) {
+}
+template <typename T, typename E>
+constexpr result_t<T, E>::operator bool() const noexcept {
+	return has_result();
+}
+template <typename T, typename E>
+constexpr bool result_t<T, E>::has_result() const noexcept {
+	return m_storage.has_value();
+}
+template <typename T, typename E>
+constexpr bool result_t<T, E>::has_error() const noexcept {
+	return !has_result();
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::type const& result_t<T, E>::result() const {
+	return m_storage.value();
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::type const& result_t<T, E>::value_or(type const& fallback) const {
+	return has_result() ? result() : fallback;
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::err_t const& result_t<T, E>::error() const {
+	return m_storage.error();
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::type result_t<T, E>::move() {
+	return m_storage.move();
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::type const& result_t<T, E>::operator*() const {
+	return result();
+}
+template <typename T, typename E>
+constexpr typename result_t<T, E>::type const* result_t<T, E>::operator->() const {
+	return &result();
 }
 
-template <typename T, typename RD>
-constexpr T&& result<T, RD>::move() {
-	if (storage.signal == RD::success) {
-		storage.signal = RD::failure;
-		return std::move(*storage.data);
-	}
-	throw std::runtime_error("Invalid result!");
+template <typename T>
+constexpr result_t<T, T>::result_t() : m_storage(err_t{}), m_error(true) {
+}
+template <typename T>
+constexpr void result_t<T, T>::result(type&& t) {
+	m_storage = std::move(t);
+	m_error = false;
+}
+template <typename T>
+constexpr void result_t<T, T>::result(type const& t) {
+	m_storage = t;
+	m_error = false;
+}
+template <typename T>
+constexpr void result_t<T, T>::error(err_t&& e) {
+	m_storage = std::move(e);
+	m_error = true;
+}
+template <typename T>
+constexpr void result_t<T, T>::error(err_t const& e) {
+	m_storage = e;
+	m_error = true;
+}
+template <typename T>
+constexpr result_t<T, T>::operator bool() const noexcept {
+	return has_result();
+}
+template <typename T>
+constexpr bool result_t<T, T>::has_result() const noexcept {
+	return !m_error;
+}
+template <typename T>
+constexpr bool result_t<T, T>::has_error() const noexcept {
+	return !has_result();
+}
+template <typename T>
+constexpr typename result_t<T, T>::type const& result_t<T, T>::result() const {
+	assert(!m_error);
+	return m_storage.value();
+}
+template <typename T>
+constexpr typename result_t<T, T>::type const& result_t<T, T>::value_or(type const& fallback) const {
+	return has_result() ? result() : fallback;
+}
+template <typename T>
+constexpr typename result_t<T, T>::err_t const& result_t<T, T>::error() const {
+	assert(m_error);
+	return m_storage.value();
+}
+template <typename T>
+constexpr typename result_t<T, T>::type result_t<T, T>::move() {
+	assert(!m_error);
+	T ret = m_storage.move();
+	error(err_t{});
+	return ret;
+}
+template <typename T>
+constexpr typename result_t<T, T>::type const& result_t<T, T>::operator*() const {
+	return result();
+}
+template <typename T>
+constexpr typename result_t<T, T>::type const* result_t<T, T>::operator->() const {
+	return &result();
 }
 
-template <typename T, typename RD>
-constexpr T const* result<T, RD>::operator->() const {
-	if (storage.signal == RD::success) {
-		return &(*storage.data);
-	}
-	throw std::runtime_error("Invalid result!");
+template <typename T>
+constexpr result_t<T, void>::result_t(type&& t) : m_storage(std::move(t)) {
 }
-
-template <typename T, typename RD>
-constexpr T const& result<T, RD>::value_or(const T& fallback) const noexcept {
-	if (storage.signal == RD::success) {
-		return *storage.data;
-	}
-	return fallback;
+template <typename T>
+constexpr result_t<T, void>::result_t(type const& t) : m_storage(t) {
 }
-
-template <typename T, typename RD>
-typename result<T, RD>::err_t result<T, RD>::error() const noexcept {
-	bool const b_error = storage.signal != RD::success;
-	if constexpr (std::is_void_v<err>) {
-		return b_error;
-	} else {
-		static err const none{};
-		return b_error ? storage.error : none;
-	}
+template <typename T>
+constexpr result_t<T, void>::operator bool() const noexcept {
+	return has_result();
+}
+template <typename T>
+constexpr bool result_t<T, void>::has_result() const noexcept {
+	return m_storage.has_value();
+}
+template <typename T>
+constexpr bool result_t<T, void>::has_error() const noexcept {
+	return !has_result();
+}
+template <typename T>
+constexpr typename result_t<T, void>::type const& result_t<T, void>::result() const {
+	return m_storage.value();
+}
+template <typename T>
+constexpr typename result_t<T, void>::type const& result_t<T, void>::value_or(type const& fallback) const {
+	return has_result() ? result() : fallback;
+}
+template <typename T>
+constexpr typename result_t<T, void>::type result_t<T, void>::move() {
+	return m_storage.move();
+}
+template <typename T>
+constexpr typename result_t<T, void>::type const& result_t<T, void>::operator*() const {
+	return result();
+}
+template <typename T>
+constexpr typename result_t<T, void>::type const* result_t<T, void>::operator->() const {
+	return &result();
 }
 } // namespace kt
