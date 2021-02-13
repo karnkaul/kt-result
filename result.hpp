@@ -27,6 +27,11 @@ template <typename T, typename E = void>
 class result_t;
 
 ///
+/// \brief Type alias for no result
+///
+constexpr auto null_result = nullptr;
+
+///
 /// \brief Models a result (T) or an error (E) value
 /// Note: T cannot be void
 ///
@@ -64,6 +69,10 @@ class result_t {
 	/// \brief Constructor for error (failure)
 	///
 	constexpr result_t(err_t const& e);
+	///
+	/// \brief Constructor for implicit failure
+	///
+	constexpr result_t(std::nullptr_t);
 
 	///
 	/// \brief Operator to check for success
@@ -124,6 +133,10 @@ class result_t<T, T> {
 	/// \brief Default constructor (failure)
 	///
 	constexpr result_t();
+	///
+	/// \brief Constructor for implicit failure
+	///
+	constexpr result_t(std::nullptr_t);
 
 	///
 	/// \brief Set result (success)
@@ -206,6 +219,10 @@ class result_t<T, void> {
 	/// \brief Constructor for result (success)
 	///
 	constexpr result_t(type const& t);
+	///
+	/// \brief Constructor for implicit failure
+	///
+	constexpr result_t(std::nullptr_t);
 
 	///
 	/// \brief Operator to check for success
@@ -331,6 +348,9 @@ template <typename T, typename E>
 constexpr result_t<T, E>::result_t(err_t const& e) : m_storage(e) {
 }
 template <typename T, typename E>
+constexpr result_t<T, E>::result_t(std::nullptr_t) : result_t() {
+}
+template <typename T, typename E>
 constexpr result_t<T, E>::operator bool() const noexcept {
 	return has_result();
 }
@@ -369,6 +389,9 @@ constexpr typename result_t<T, E>::type const* result_t<T, E>::operator->() cons
 
 template <typename T>
 constexpr result_t<T, T>::result_t() : m_storage(err_t{}), m_error(true) {
+}
+template <typename T>
+constexpr result_t<T, T>::result_t(std::nullptr_t) : result_t() {
 }
 template <typename T>
 constexpr void result_t<T, T>::result(type&& t) {
@@ -437,6 +460,9 @@ constexpr result_t<T, void>::result_t(type&& t) : m_storage(std::move(t)) {
 }
 template <typename T>
 constexpr result_t<T, void>::result_t(type const& t) : m_storage(t) {
+}
+template <typename T>
+constexpr result_t<T, void>::result_t(std::nullptr_t) : result_t() {
 }
 template <typename T>
 constexpr result_t<T, void>::operator bool() const noexcept {
