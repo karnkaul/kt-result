@@ -24,7 +24,7 @@ constexpr bool false_v = false;
 /// 	- bool, void : boolean result only (like bool)
 ///
 template <typename T, typename E = void>
-class result_t;
+class result;
 
 ///
 /// \brief Type alias for no result
@@ -36,7 +36,7 @@ constexpr auto null_result = nullptr;
 /// Note: T cannot be void
 ///
 template <typename T, typename E>
-class result_t {
+class result {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
@@ -52,27 +52,27 @@ class result_t {
 	///
 	/// \brief Default constructor (failure)
 	///
-	constexpr result_t() = default;
+	constexpr result() = default;
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result_t(type&& t);
+	constexpr result(type&& t);
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result_t(type const& t);
+	constexpr result(type const& t);
 	///
 	/// \brief Constructor for error (failure)
 	///
-	constexpr result_t(err_t&& e);
+	constexpr result(err_t&& e);
 	///
 	/// \brief Constructor for error (failure)
 	///
-	constexpr result_t(err_t const& e);
+	constexpr result(err_t const& e);
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result_t(std::nullptr_t);
+	constexpr result(std::nullptr_t);
 
 	///
 	/// \brief Operator to check for success
@@ -90,7 +90,7 @@ class result_t {
 	///
 	/// \brief Obtain result
 	///
-	constexpr type const& result() const;
+	constexpr type const& get_result() const;
 	///
 	/// \brief Obtain result if success else fallback
 	///
@@ -116,7 +116,7 @@ class result_t {
 /// Note: T cannot be void
 ///
 template <typename T>
-class result_t<T, T> {
+class result<T, T> {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
@@ -132,28 +132,28 @@ class result_t<T, T> {
 	///
 	/// \brief Default constructor (failure)
 	///
-	constexpr result_t();
+	constexpr result();
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result_t(std::nullptr_t);
+	constexpr result(std::nullptr_t);
 
 	///
 	/// \brief Set result (success)
 	///
-	constexpr void result(type&& t);
+	constexpr void set_result(type&& t);
 	///
 	/// \brief Set result (success)
 	///
-	constexpr void result(type const& t);
+	constexpr void set_result(type const& t);
 	///
 	/// \brief Set error (failure)
 	///
-	constexpr void error(err_t&& t);
+	constexpr void set_error(err_t&& t);
 	///
 	/// \brief Set error (failure)
 	///
-	constexpr void error(err_t const& t);
+	constexpr void set_error(err_t const& t);
 
 	///
 	/// \brief Operator to check for success
@@ -171,7 +171,7 @@ class result_t<T, T> {
 	///
 	/// \brief Obtain result
 	///
-	constexpr type const& result() const;
+	constexpr type const& get_result() const;
 	///
 	/// \brief Obtain result if success else fallback
 	///
@@ -198,7 +198,7 @@ class result_t<T, T> {
 /// Note: T cannot be void
 ///
 template <typename T>
-class result_t<T, void> {
+class result<T, void> {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
@@ -210,19 +210,19 @@ class result_t<T, void> {
 	///
 	/// \brief Default constructor (failure)
 	///
-	constexpr result_t() = default;
+	constexpr result() = default;
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result_t(type&& t);
+	constexpr result(type&& t);
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result_t(type const& t);
+	constexpr result(type const& t);
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result_t(std::nullptr_t);
+	constexpr result(std::nullptr_t);
 
 	///
 	/// \brief Operator to check for success
@@ -240,7 +240,7 @@ class result_t<T, void> {
 	///
 	/// \brief Obtain result
 	///
-	constexpr type const& result() const;
+	constexpr type const& get_result() const;
 	///
 	/// \brief Obtain result if success else fallback
 	///
@@ -336,164 +336,164 @@ struct result_storage_t<bool, void> {
 } // namespace detail
 
 template <typename T, typename E>
-constexpr result_t<T, E>::result_t(type&& t) : m_storage(std::move(t)) {
+constexpr result<T, E>::result(type&& t) : m_storage(std::move(t)) {
 }
 template <typename T, typename E>
-constexpr result_t<T, E>::result_t(type const& t) : m_storage(t) {
+constexpr result<T, E>::result(type const& t) : m_storage(t) {
 }
 template <typename T, typename E>
-constexpr result_t<T, E>::result_t(err_t&& e) : m_storage(std::move(e)) {
+constexpr result<T, E>::result(err_t&& e) : m_storage(std::move(e)) {
 }
 template <typename T, typename E>
-constexpr result_t<T, E>::result_t(err_t const& e) : m_storage(e) {
+constexpr result<T, E>::result(err_t const& e) : m_storage(e) {
 }
 template <typename T, typename E>
-constexpr result_t<T, E>::result_t(std::nullptr_t) : result_t() {
+constexpr result<T, E>::result(std::nullptr_t) : result() {
 }
 template <typename T, typename E>
-constexpr result_t<T, E>::operator bool() const noexcept {
+constexpr result<T, E>::operator bool() const noexcept {
 	return has_result();
 }
 template <typename T, typename E>
-constexpr bool result_t<T, E>::has_result() const noexcept {
+constexpr bool result<T, E>::has_result() const noexcept {
 	return m_storage.has_value();
 }
 template <typename T, typename E>
-constexpr bool result_t<T, E>::has_error() const noexcept {
+constexpr bool result<T, E>::has_error() const noexcept {
 	return !has_result();
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::type const& result_t<T, E>::result() const {
+constexpr typename result<T, E>::type const& result<T, E>::get_result() const {
 	return m_storage.value();
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::type const& result_t<T, E>::value_or(type const& fallback) const {
-	return has_result() ? result() : fallback;
+constexpr typename result<T, E>::type const& result<T, E>::value_or(type const& fallback) const {
+	return has_result() ? get_result() : fallback;
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::err_t const& result_t<T, E>::error() const {
+constexpr typename result<T, E>::err_t const& result<T, E>::error() const {
 	return m_storage.error();
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::type result_t<T, E>::move() {
+constexpr typename result<T, E>::type result<T, E>::move() {
 	return m_storage.move();
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::type const& result_t<T, E>::operator*() const {
-	return result();
+constexpr typename result<T, E>::type const& result<T, E>::operator*() const {
+	return get_result();
 }
 template <typename T, typename E>
-constexpr typename result_t<T, E>::type const* result_t<T, E>::operator->() const {
-	return &result();
+constexpr typename result<T, E>::type const* result<T, E>::operator->() const {
+	return &get_result();
 }
 
 template <typename T>
-constexpr result_t<T, T>::result_t() : m_storage(err_t{}), m_error(true) {
+constexpr result<T, T>::result() : m_storage(err_t{}), m_error(true) {
 }
 template <typename T>
-constexpr result_t<T, T>::result_t(std::nullptr_t) : result_t() {
+constexpr result<T, T>::result(std::nullptr_t) : result() {
 }
 template <typename T>
-constexpr void result_t<T, T>::result(type&& t) {
+constexpr void result<T, T>::set_result(type&& t) {
 	m_storage = std::move(t);
 	m_error = false;
 }
 template <typename T>
-constexpr void result_t<T, T>::result(type const& t) {
+constexpr void result<T, T>::set_result(type const& t) {
 	m_storage = t;
 	m_error = false;
 }
 template <typename T>
-constexpr void result_t<T, T>::error(err_t&& e) {
+constexpr void result<T, T>::set_error(err_t&& e) {
 	m_storage = std::move(e);
 	m_error = true;
 }
 template <typename T>
-constexpr void result_t<T, T>::error(err_t const& e) {
+constexpr void result<T, T>::set_error(err_t const& e) {
 	m_storage = e;
 	m_error = true;
 }
 template <typename T>
-constexpr result_t<T, T>::operator bool() const noexcept {
+constexpr result<T, T>::operator bool() const noexcept {
 	return has_result();
 }
 template <typename T>
-constexpr bool result_t<T, T>::has_result() const noexcept {
+constexpr bool result<T, T>::has_result() const noexcept {
 	return !m_error;
 }
 template <typename T>
-constexpr bool result_t<T, T>::has_error() const noexcept {
+constexpr bool result<T, T>::has_error() const noexcept {
 	return !has_result();
 }
 template <typename T>
-constexpr typename result_t<T, T>::type const& result_t<T, T>::result() const {
+constexpr typename result<T, T>::type const& result<T, T>::get_result() const {
 	assert(!m_error);
 	return m_storage.value();
 }
 template <typename T>
-constexpr typename result_t<T, T>::type const& result_t<T, T>::value_or(type const& fallback) const {
-	return has_result() ? result() : fallback;
+constexpr typename result<T, T>::type const& result<T, T>::value_or(type const& fallback) const {
+	return has_result() ? get_result() : fallback;
 }
 template <typename T>
-constexpr typename result_t<T, T>::err_t const& result_t<T, T>::error() const {
+constexpr typename result<T, T>::err_t const& result<T, T>::error() const {
 	assert(m_error);
 	return m_storage.value();
 }
 template <typename T>
-constexpr typename result_t<T, T>::type result_t<T, T>::move() {
+constexpr typename result<T, T>::type result<T, T>::move() {
 	assert(!m_error);
 	T ret = m_storage.move();
 	error(err_t{});
 	return ret;
 }
 template <typename T>
-constexpr typename result_t<T, T>::type const& result_t<T, T>::operator*() const {
-	return result();
+constexpr typename result<T, T>::type const& result<T, T>::operator*() const {
+	return get_result();
 }
 template <typename T>
-constexpr typename result_t<T, T>::type const* result_t<T, T>::operator->() const {
-	return &result();
+constexpr typename result<T, T>::type const* result<T, T>::operator->() const {
+	return &get_result();
 }
 
 template <typename T>
-constexpr result_t<T, void>::result_t(type&& t) : m_storage(std::move(t)) {
+constexpr result<T, void>::result(type&& t) : m_storage(std::move(t)) {
 }
 template <typename T>
-constexpr result_t<T, void>::result_t(type const& t) : m_storage(t) {
+constexpr result<T, void>::result(type const& t) : m_storage(t) {
 }
 template <typename T>
-constexpr result_t<T, void>::result_t(std::nullptr_t) : result_t() {
+constexpr result<T, void>::result(std::nullptr_t) : result() {
 }
 template <typename T>
-constexpr result_t<T, void>::operator bool() const noexcept {
+constexpr result<T, void>::operator bool() const noexcept {
 	return has_result();
 }
 template <typename T>
-constexpr bool result_t<T, void>::has_result() const noexcept {
+constexpr bool result<T, void>::has_result() const noexcept {
 	return m_storage.has_value();
 }
 template <typename T>
-constexpr bool result_t<T, void>::has_error() const noexcept {
+constexpr bool result<T, void>::has_error() const noexcept {
 	return !has_result();
 }
 template <typename T>
-constexpr typename result_t<T, void>::type const& result_t<T, void>::result() const {
+constexpr typename result<T, void>::type const& result<T, void>::get_result() const {
 	return m_storage.value();
 }
 template <typename T>
-constexpr typename result_t<T, void>::type const& result_t<T, void>::value_or(type const& fallback) const {
-	return has_result() ? result() : fallback;
+constexpr typename result<T, void>::type const& result<T, void>::value_or(type const& fallback) const {
+	return has_result() ? get_result() : fallback;
 }
 template <typename T>
-constexpr typename result_t<T, void>::type result_t<T, void>::move() {
+constexpr typename result<T, void>::type result<T, void>::move() {
 	return m_storage.move();
 }
 template <typename T>
-constexpr typename result_t<T, void>::type const& result_t<T, void>::operator*() const {
-	return result();
+constexpr typename result<T, void>::type const& result<T, void>::operator*() const {
+	return get_result();
 }
 template <typename T>
-constexpr typename result_t<T, void>::type const* result_t<T, void>::operator->() const {
-	return &result();
+constexpr typename result<T, void>::type const* result<T, void>::operator->() const {
+	return &get_result();
 }
 } // namespace kt
