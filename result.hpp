@@ -262,19 +262,12 @@ template <typename T, typename E>
 struct result_storage_t {
 	std::variant<T, E> val;
 
-	constexpr result_storage_t() : val(E{}) {
-	}
-	constexpr result_storage_t(T&& t) : val(std::move(t)) {
-	}
-	constexpr result_storage_t(T const& t) : val(t) {
-	}
-	constexpr result_storage_t(E&& e) : val(std::move(e)) {
-	}
-	constexpr result_storage_t(E const& e) : val(e) {
-	}
-	constexpr bool has_value() const noexcept {
-		return std::holds_alternative<T>(val);
-	}
+	constexpr result_storage_t() : val(E{}) {}
+	constexpr result_storage_t(T&& t) : val(std::move(t)) {}
+	constexpr result_storage_t(T const& t) : val(t) {}
+	constexpr result_storage_t(E&& e) : val(std::move(e)) {}
+	constexpr result_storage_t(E const& e) : val(e) {}
+	constexpr bool has_value() const noexcept { return std::holds_alternative<T>(val); }
 	constexpr T const& value() const {
 		assert(has_value());
 		return std::get<T>(val);
@@ -295,13 +288,9 @@ struct result_storage_t<T, void> {
 	std::optional<T> val;
 
 	constexpr result_storage_t() = default;
-	constexpr result_storage_t(T&& t) : val(std::move(t)) {
-	}
-	constexpr result_storage_t(T const& t) : val(t) {
-	}
-	constexpr bool has_value() const noexcept {
-		return val.has_value();
-	}
+	constexpr result_storage_t(T&& t) : val(std::move(t)) {}
+	constexpr result_storage_t(T const& t) : val(t) {}
+	constexpr bool has_value() const noexcept { return val.has_value(); }
 	constexpr T const& value() const {
 		assert(has_value());
 		return *val;
@@ -317,16 +306,10 @@ template <>
 struct result_storage_t<bool, void> {
 	bool val;
 
-	constexpr result_storage_t() : val(false) {
-	}
-	constexpr result_storage_t(bool val) : val(val) {
-	}
-	constexpr bool has_value() const noexcept {
-		return val;
-	}
-	constexpr bool value() const {
-		return val;
-	}
+	constexpr result_storage_t() : val(false) {}
+	constexpr result_storage_t(bool val) : val(val) {}
+	constexpr bool has_value() const noexcept { return val; }
+	constexpr bool value() const { return val; }
 	constexpr bool move() {
 		bool const ret = val;
 		val = false;
@@ -336,20 +319,15 @@ struct result_storage_t<bool, void> {
 } // namespace detail
 
 template <typename T, typename E>
-constexpr result<T, E>::result(type&& t) : m_storage(std::move(t)) {
-}
+constexpr result<T, E>::result(type&& t) : m_storage(std::move(t)) {}
 template <typename T, typename E>
-constexpr result<T, E>::result(type const& t) : m_storage(t) {
-}
+constexpr result<T, E>::result(type const& t) : m_storage(t) {}
 template <typename T, typename E>
-constexpr result<T, E>::result(err_t&& e) : m_storage(std::move(e)) {
-}
+constexpr result<T, E>::result(err_t&& e) : m_storage(std::move(e)) {}
 template <typename T, typename E>
-constexpr result<T, E>::result(err_t const& e) : m_storage(e) {
-}
+constexpr result<T, E>::result(err_t const& e) : m_storage(e) {}
 template <typename T, typename E>
-constexpr result<T, E>::result(std::nullptr_t) : result() {
-}
+constexpr result<T, E>::result(std::nullptr_t) : result() {}
 template <typename T, typename E>
 constexpr result<T, E>::operator bool() const noexcept {
 	return has_result();
@@ -388,11 +366,9 @@ constexpr typename result<T, E>::type const* result<T, E>::operator->() const {
 }
 
 template <typename T>
-constexpr result<T, T>::result() : m_storage(err_t{}), m_error(true) {
-}
+constexpr result<T, T>::result() : m_storage(err_t{}), m_error(true) {}
 template <typename T>
-constexpr result<T, T>::result(std::nullptr_t) : result() {
-}
+constexpr result<T, T>::result(std::nullptr_t) : result() {}
 template <typename T>
 constexpr void result<T, T>::set_result(type&& t) {
 	m_storage = std::move(t);
@@ -456,14 +432,11 @@ constexpr typename result<T, T>::type const* result<T, T>::operator->() const {
 }
 
 template <typename T>
-constexpr result<T, void>::result(type&& t) : m_storage(std::move(t)) {
-}
+constexpr result<T, void>::result(type&& t) : m_storage(std::move(t)) {}
 template <typename T>
-constexpr result<T, void>::result(type const& t) : m_storage(t) {
-}
+constexpr result<T, void>::result(type const& t) : m_storage(t) {}
 template <typename T>
-constexpr result<T, void>::result(std::nullptr_t) : result() {
-}
+constexpr result<T, void>::result(std::nullptr_t) : result() {}
 template <typename T>
 constexpr result<T, void>::operator bool() const noexcept {
 	return has_result();
