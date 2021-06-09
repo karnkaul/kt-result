@@ -11,8 +11,6 @@ namespace kt {
 namespace detail {
 template <typename T, typename E>
 struct result_storage_t;
-template <typename... T>
-constexpr bool false_v = false;
 } // namespace detail
 
 ///
@@ -40,13 +38,7 @@ class result {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
-	///
-	/// \brief Result type
-	///
 	using type = T;
-	///
-	/// \brief Error type
-	///
 	using err_t = E;
 
 	///
@@ -56,59 +48,44 @@ class result {
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result(type&& t);
+	constexpr result(T&& t) : m_storage(std::move(t)) {}
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result(type const& t);
+	constexpr result(T const& t) : m_storage(t) {}
 	///
 	/// \brief Constructor for error (failure)
 	///
-	constexpr result(err_t&& e);
+	constexpr result(E&& e) : m_storage(std::move(e)) {}
 	///
 	/// \brief Constructor for error (failure)
 	///
-	constexpr result(err_t const& e);
+	constexpr result(E const& e) : m_storage(e) {}
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result(std::nullptr_t);
+	constexpr result(std::nullptr_t) : result() {}
+
+	constexpr explicit operator bool() const noexcept { return has_value(); }
+	constexpr bool has_value() const noexcept { return m_storage.has_value(); }
+	constexpr bool has_error() const noexcept { return !has_value(); }
 
 	///
-	/// \brief Operator to check for success
+	/// \brief Obtain const lvalue ref to result from non-rvalue this
 	///
-	constexpr explicit operator bool() const noexcept;
+	constexpr T const& value() const& { return m_storage.value(); }
 	///
-	/// \brief Check for success
+	/// \brief Move result from rvalue this
 	///
-	constexpr bool has_result() const noexcept;
-	///
-	/// \brief Check for failure
-	///
-	constexpr bool has_error() const noexcept;
+	constexpr T value() const&& { return std::move(m_storage).value(); }
+	constexpr T const& value_or(T const& fallback) const { return has_value() ? value() : fallback; }
+	constexpr E const& error() const { return m_storage.error(); }
 
-	///
-	/// \brief Obtain result
-	///
-	constexpr type const& get_result() const;
-	///
-	/// \brief Obtain result if success else fallback
-	///
-	constexpr type const& value_or(type const& fallback) const;
-	///
-	/// \brief Obtain error
-	///
-	constexpr err_t const& error() const;
-	///
-	/// \brief Move result
-	///
-	constexpr type move();
-
-	constexpr type const& operator*() const;
-	constexpr type const* operator->() const;
+	constexpr T const& operator*() const { return value(); }
+	constexpr T const* operator->() const { return &value(); }
 
   private:
-	detail::result_storage_t<type, err_t> m_storage;
+	detail::result_storage_t<T, err_t> m_storage;
 };
 
 ///
@@ -120,75 +97,53 @@ class result<T, T> {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
-	///
-	/// \brief Result type
-	///
 	using type = T;
-	///
-	/// \brief Error type
-	///
 	using err_t = T;
 
 	///
 	/// \brief Default constructor (failure)
 	///
-	constexpr result();
+	constexpr result() : m_storage(T{}), m_error(true) {}
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result(std::nullptr_t);
+	constexpr result(std::nullptr_t) : result() {}
+
+	constexpr void set_result(T&& t) { set(std::move(t), false); }
+	constexpr void set_result(T const& t) { set(t, false); }
+	constexpr void set_error(T&& e) { set(std::move(e), true); }
+	constexpr void set_error(T const& e) { set(e, true); }
+
+	constexpr explicit operator bool() const noexcept { return has_value(); }
+	constexpr bool has_value() const noexcept { return !m_error; }
+	constexpr bool has_error() const noexcept { return !has_value(); }
 
 	///
-	/// \brief Set result (success)
+	/// \brief Obtain const lvalue ref to result from non-rvalue this
 	///
-	constexpr void set_result(type&& t);
+	constexpr T const& value() const& { return get<T const&>(m_storage, !m_error); }
 	///
-	/// \brief Set result (success)
+	/// \brief Move result from rvalue this
 	///
-	constexpr void set_result(type const& t);
-	///
-	/// \brief Set error (failure)
-	///
-	constexpr void set_error(err_t&& t);
-	///
-	/// \brief Set error (failure)
-	///
-	constexpr void set_error(err_t const& t);
+	constexpr T value() && { return get<T>(std::move(m_storage), !m_error); }
+	constexpr T const& value_or(T const& fallback) const { return has_value() ? value() : fallback; }
+	constexpr T const& error() const { return get<T const&>(m_storage, m_error); }
 
-	///
-	/// \brief Operator to check for success
-	///
-	constexpr explicit operator bool() const noexcept;
-	///
-	/// \brief Check for success
-	///
-	constexpr bool has_result() const noexcept;
-	///
-	/// \brief Check for failure
-	///
-	constexpr bool has_error() const noexcept;
-
-	///
-	/// \brief Obtain result
-	///
-	constexpr type const& get_result() const;
-	///
-	/// \brief Obtain result if success else fallback
-	///
-	constexpr type const& value_or(type const& fallback) const;
-	///
-	/// \brief Obtain error
-	///
-	constexpr err_t const& error() const;
-	///
-	/// \brief Move result
-	///
-	constexpr type move();
-
-	constexpr type const& operator*() const;
-	constexpr type const* operator->() const;
+	constexpr T const& operator*() const { return value(); }
+	constexpr T const* operator->() const { return &value(); }
 
   private:
+	template <typename U>
+	constexpr void set(U&& u, bool error) {
+		m_storage.emplace(std::forward<U>(u));
+		m_error = error;
+	}
+	template <typename U, typename V>
+	static constexpr U get(V&& storage, bool pred) {
+		assert(pred);
+		return std::forward<V>(storage).value();
+	}
+
 	detail::result_storage_t<type, void> m_storage;
 	bool m_error = true;
 };
@@ -202,9 +157,6 @@ class result<T, void> {
 	static_assert(!std::is_same_v<T, void>, "T = void is not supported");
 
   public:
-	///
-	/// \brief Result type
-	///
 	using type = T;
 
 	///
@@ -214,44 +166,35 @@ class result<T, void> {
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result(type&& t);
+	constexpr result(T&& t) : m_storage(std::move(t)) {}
 	///
 	/// \brief Constructor for result (success)
 	///
-	constexpr result(type const& t);
+	constexpr result(T const& t) : m_storage(t) {}
 	///
 	/// \brief Constructor for implicit failure
 	///
-	constexpr result(std::nullptr_t);
+	constexpr result(std::nullptr_t) : result() {}
+
+	constexpr explicit operator bool() const noexcept { return has_value(); }
+	constexpr bool has_value() const noexcept { return m_storage.has_value(); }
+	constexpr bool has_error() const noexcept { return !has_value(); }
 
 	///
-	/// \brief Operator to check for success
+	/// \brief Obtain const lvalue ref to result from non-rvalue this
 	///
-	constexpr explicit operator bool() const noexcept;
+	constexpr T const& value() const& { return m_storage.value(); }
 	///
-	/// \brief Check for success
+	/// \brief Move result from rvalue this
 	///
-	constexpr bool has_result() const noexcept;
-	///
-	/// \brief Check for failure
-	///
-	constexpr bool has_error() const noexcept;
-
-	///
-	/// \brief Obtain result
-	///
-	constexpr type const& get_result() const;
+	constexpr T value() && { return std::move(m_storage).value(); }
 	///
 	/// \brief Obtain result if success else fallback
 	///
-	constexpr type const& value_or(type const& fallback) const;
-	///
-	/// \brief Move result
-	///
-	constexpr type move();
+	constexpr T const& value_or(T const& fallback) const { return has_value() ? value() : fallback; }
 
-	constexpr type const& operator*() const;
-	constexpr type const* operator->() const;
+	constexpr T const& operator*() const { return value(); }
+	constexpr T const* operator->() const { return &value(); }
 
   private:
 	detail::result_storage_t<T, void> m_storage;
@@ -268,15 +211,13 @@ struct result_storage_t {
 	constexpr result_storage_t(E&& e) : val(std::move(e)) {}
 	constexpr result_storage_t(E const& e) : val(e) {}
 	constexpr bool has_value() const noexcept { return std::holds_alternative<T>(val); }
-	constexpr T const& value() const {
+	constexpr T const& value() const& {
 		assert(has_value());
 		return std::get<T>(val);
 	}
-	constexpr T move() {
+	constexpr T value() && {
 		assert(has_value());
-		T ret = std::get<T>(std::move(val));
-		val = E{};
-		return ret;
+		return std::get<T>(std::move(val));
 	}
 	constexpr E const& error() const {
 		assert(!has_value());
@@ -291,15 +232,13 @@ struct result_storage_t<T, void> {
 	constexpr result_storage_t(T&& t) : val(std::move(t)) {}
 	constexpr result_storage_t(T const& t) : val(t) {}
 	constexpr bool has_value() const noexcept { return val.has_value(); }
-	constexpr T const& value() const {
+	constexpr T const& value() const& {
 		assert(has_value());
 		return *val;
 	}
-	constexpr T move() {
+	constexpr T value() && {
 		assert(has_value());
-		T ret = std::move(*val);
-		val.reset();
-		return ret;
+		return std::move(*val);
 	}
 };
 template <>
@@ -310,163 +249,6 @@ struct result_storage_t<bool, void> {
 	constexpr result_storage_t(bool val) : val(val) {}
 	constexpr bool has_value() const noexcept { return val; }
 	constexpr bool value() const { return val; }
-	constexpr bool move() {
-		bool const ret = val;
-		val = false;
-		return ret;
-	}
 };
 } // namespace detail
-
-template <typename T, typename E>
-constexpr result<T, E>::result(type&& t) : m_storage(std::move(t)) {}
-template <typename T, typename E>
-constexpr result<T, E>::result(type const& t) : m_storage(t) {}
-template <typename T, typename E>
-constexpr result<T, E>::result(err_t&& e) : m_storage(std::move(e)) {}
-template <typename T, typename E>
-constexpr result<T, E>::result(err_t const& e) : m_storage(e) {}
-template <typename T, typename E>
-constexpr result<T, E>::result(std::nullptr_t) : result() {}
-template <typename T, typename E>
-constexpr result<T, E>::operator bool() const noexcept {
-	return has_result();
-}
-template <typename T, typename E>
-constexpr bool result<T, E>::has_result() const noexcept {
-	return m_storage.has_value();
-}
-template <typename T, typename E>
-constexpr bool result<T, E>::has_error() const noexcept {
-	return !has_result();
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::type const& result<T, E>::get_result() const {
-	return m_storage.value();
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::type const& result<T, E>::value_or(type const& fallback) const {
-	return has_result() ? get_result() : fallback;
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::err_t const& result<T, E>::error() const {
-	return m_storage.error();
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::type result<T, E>::move() {
-	return m_storage.move();
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::type const& result<T, E>::operator*() const {
-	return get_result();
-}
-template <typename T, typename E>
-constexpr typename result<T, E>::type const* result<T, E>::operator->() const {
-	return &get_result();
-}
-
-template <typename T>
-constexpr result<T, T>::result() : m_storage(err_t{}), m_error(true) {}
-template <typename T>
-constexpr result<T, T>::result(std::nullptr_t) : result() {}
-template <typename T>
-constexpr void result<T, T>::set_result(type&& t) {
-	m_storage = std::move(t);
-	m_error = false;
-}
-template <typename T>
-constexpr void result<T, T>::set_result(type const& t) {
-	m_storage = t;
-	m_error = false;
-}
-template <typename T>
-constexpr void result<T, T>::set_error(err_t&& e) {
-	m_storage = std::move(e);
-	m_error = true;
-}
-template <typename T>
-constexpr void result<T, T>::set_error(err_t const& e) {
-	m_storage = e;
-	m_error = true;
-}
-template <typename T>
-constexpr result<T, T>::operator bool() const noexcept {
-	return has_result();
-}
-template <typename T>
-constexpr bool result<T, T>::has_result() const noexcept {
-	return !m_error;
-}
-template <typename T>
-constexpr bool result<T, T>::has_error() const noexcept {
-	return !has_result();
-}
-template <typename T>
-constexpr typename result<T, T>::type const& result<T, T>::get_result() const {
-	assert(!m_error);
-	return m_storage.value();
-}
-template <typename T>
-constexpr typename result<T, T>::type const& result<T, T>::value_or(type const& fallback) const {
-	return has_result() ? get_result() : fallback;
-}
-template <typename T>
-constexpr typename result<T, T>::err_t const& result<T, T>::error() const {
-	assert(m_error);
-	return m_storage.value();
-}
-template <typename T>
-constexpr typename result<T, T>::type result<T, T>::move() {
-	assert(!m_error);
-	T ret = m_storage.move();
-	error(err_t{});
-	return ret;
-}
-template <typename T>
-constexpr typename result<T, T>::type const& result<T, T>::operator*() const {
-	return get_result();
-}
-template <typename T>
-constexpr typename result<T, T>::type const* result<T, T>::operator->() const {
-	return &get_result();
-}
-
-template <typename T>
-constexpr result<T, void>::result(type&& t) : m_storage(std::move(t)) {}
-template <typename T>
-constexpr result<T, void>::result(type const& t) : m_storage(t) {}
-template <typename T>
-constexpr result<T, void>::result(std::nullptr_t) : result() {}
-template <typename T>
-constexpr result<T, void>::operator bool() const noexcept {
-	return has_result();
-}
-template <typename T>
-constexpr bool result<T, void>::has_result() const noexcept {
-	return m_storage.has_value();
-}
-template <typename T>
-constexpr bool result<T, void>::has_error() const noexcept {
-	return !has_result();
-}
-template <typename T>
-constexpr typename result<T, void>::type const& result<T, void>::get_result() const {
-	return m_storage.value();
-}
-template <typename T>
-constexpr typename result<T, void>::type const& result<T, void>::value_or(type const& fallback) const {
-	return has_result() ? get_result() : fallback;
-}
-template <typename T>
-constexpr typename result<T, void>::type result<T, void>::move() {
-	return m_storage.move();
-}
-template <typename T>
-constexpr typename result<T, void>::type const& result<T, void>::operator*() const {
-	return get_result();
-}
-template <typename T>
-constexpr typename result<T, void>::type const* result<T, void>::operator->() const {
-	return &get_result();
-}
 } // namespace kt
