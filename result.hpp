@@ -139,7 +139,7 @@ class result<T, T> {
 		m_error = error;
 	}
 	template <typename U, typename V>
-	static constexpr U get(V&& storage, bool pred) {
+	static constexpr U get(V&& storage, [[maybe_unused]] bool pred) {
 		assert(pred);
 		return std::forward<V>(storage).value();
 	}
